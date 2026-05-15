@@ -1,28 +1,12 @@
-import {
-  useEffect,
-  useRef,
-  useState,
-} from "react";
-
+```jsx
+import { useEffect, useRef, useState } from "react";
 import io from "socket.io-client";
 
-// ===============================
-// SOCKET
-// ===============================
-
 const socket = io(
-  "https://synctalk-backend-w7lj.onrender.com",
-  {
-    transports: ["websocket"],
-    autoConnect: true,
-  }
+  "https://synctalk-backend-w7lj.onrender.com"
 );
 
 function Chat() {
-  // ===============================
-  // STATES
-  // ===============================
-
   const [messages, setMessages] =
     useState([]);
 
@@ -50,244 +34,82 @@ function Chat() {
   const [showMenu, setShowMenu] =
     useState(false);
 
-  const [replyMessage, setReplyMessage] =
-    useState(null);
-
-  const [messageMenu, setMessageMenu] =
-    useState({
-      visible: false,
-      message: null,
-    });
-
-  // ===============================
-  // REFS
-  // ===============================
+  const [darkMode, setDarkMode] =
+    useState(true);
 
   const messagesEndRef = useRef(null);
 
-  const typingTimeoutRef = useRef(null);
+  // ===============================
+  // SOCKET
+  // ===============================
 
-  const notificationSound = useRef(
-    typeof Audio !== "undefined"
-      ? new Audio(
-          "https://notificationsounds.com/storage/sounds/file-sounds-1150-pristine.mp3"
-        )
-      : null
-  );
+  useEffect(() => {
+    socket.on("message", (message) => {
+      setMessages((prev) => [
+        ...prev,
+        message,
+      ]);
+    });
+
+    socket.on(
+      "previous_messages",
+      (messages) => {
+        setMessages(messages);
+      }
+    );
+
+    socket.on("room_users", (users) => {
+      setRoomUsers(users);
+    });
+
+    socket.on("typing", (user) => {
+      setTypingUser(user);
+    });
+
+    socket.on("stop_typing", () => {
+      setTypingUser("");
+    });
+
+    socket.on("room_cleared", () => {
+      setMessages([]);
+    });
+
+    return () => {
+      socket.off("message");
+      socket.off(
+        "previous_messages"
+      );
+      socket.off("room_users");
+      socket.off("typing");
+      socket.off("stop_typing");
+      socket.off("room_cleared");
+    };
+  }, []);
 
   // ===============================
   // AUTO SCROLL
   // ===============================
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView(
-      {
-        behavior: "smooth",
-      }
-    );
+    messagesEndRef.current?.scrollIntoView({
+      behavior: "smooth",
+    });
   }, [messages]);
 
   // ===============================
-  // SOCKET LISTENERS
-  // ===============================
-
-  useEffect(() => {
-    // MESSAGE
-
-    const handleMessage = (
-      message
-    ) => {
-      setMessages((prev) => {
-        const exists = prev.find(
-          (m) => m._id === message._id
-        );
-
-        if (exists) return prev;
-
-        return [...prev, message];
-      });
-
-      // notification
-
-      if (
-        message.username !== username &&
-        message.username !== "System"
-      ) {
-        notificationSound.current
-          ?.play()
-          .catch(() => {});
-      }
-    };
-
-    // PREVIOUS MESSAGES
-
-    const handlePreviousMessages = (
-      previousMessages
-    ) => {
-      setMessages(previousMessages);
-    };
-
-    // USERS
-
-    const handleRoomUsers = (
-      users
-    ) => {
-      setRoomUsers(users);
-    };
-
-    // TYPING
-
-    const handleTyping = (
-      user
-    ) => {
-      setTypingUser(user);
-    };
-
-    const handleStopTyping =
-      () => {
-        setTypingUser("");
-      };
-
-    // ROOM CLEARED
-
-    const handleRoomCleared =
-      () => {
-        setMessages([]);
-      };
-
-    // MESSAGE DELETED
-
-    const handleMessageDeleted =
-      ({ messageId }) => {
-        setMessages((prev) =>
-          prev.map((msg) =>
-            msg._id === messageId
-              ? {
-                  ...msg,
-                  text:
-                    "This message was deleted",
-                  deleted: true,
-                }
-              : msg
-          )
-        );
-      };
-
-    // ROOM DELETED
-
-    const handleRoomDeleted =
-      () => {
-        alert("Room deleted");
-
-        setMessages([]);
-        setJoined(false);
-        setRoom("");
-        setRoomUsers([]);
-      };
-
-    // REGISTER
-
-    socket.on(
-      "message",
-      handleMessage
-    );
-
-    socket.on(
-      "previous_messages",
-      handlePreviousMessages
-    );
-
-    socket.on(
-      "room_users",
-      handleRoomUsers
-    );
-
-    socket.on(
-      "typing",
-      handleTyping
-    );
-
-    socket.on(
-      "stop_typing",
-      handleStopTyping
-    );
-
-    socket.on(
-      "room_cleared",
-      handleRoomCleared
-    );
-
-    socket.on(
-      "message_deleted_everyone",
-      handleMessageDeleted
-    );
-
-    socket.on(
-      "room_deleted",
-      handleRoomDeleted
-    );
-
-    // CLEANUP
-
-    return () => {
-      socket.off(
-        "message",
-        handleMessage
-      );
-
-      socket.off(
-        "previous_messages",
-        handlePreviousMessages
-      );
-
-      socket.off(
-        "room_users",
-        handleRoomUsers
-      );
-
-      socket.off(
-        "typing",
-        handleTyping
-      );
-
-      socket.off(
-        "stop_typing",
-        handleStopTyping
-      );
-
-      socket.off(
-        "room_cleared",
-        handleRoomCleared
-      );
-
-      socket.off(
-        "message_deleted_everyone",
-        handleMessageDeleted
-      );
-
-      socket.off(
-        "room_deleted",
-        handleRoomDeleted
-      );
-    };
-  }, [username]);
-
-  // ===============================
-  // JOIN ROOM
+  // JOIN
   // ===============================
 
   const joinRoom = () => {
     if (
       !username.trim() ||
       !room.trim()
-    ) {
+    )
       return;
-    }
 
     socket.emit("join_room", {
-      username:
-        username.trim(),
-      room: room.trim(),
+      username,
+      room,
     });
 
     setJoined(true);
@@ -298,34 +120,17 @@ function Chat() {
   // ===============================
 
   const sendMessage = () => {
-    if (!messageInput.trim()) {
+    if (!messageInput.trim())
       return;
-    }
 
-    const messageData = {
-      text: messageInput.trim(),
+    socket.emit("message", {
+      text: messageInput,
       username,
       room,
       timestamp: new Date(),
-
-      replyTo: replyMessage
-        ? {
-            message:
-              replyMessage.text,
-            username:
-              replyMessage.username,
-          }
-        : null,
-    };
-
-    socket.emit(
-      "message",
-      messageData
-    );
+    });
 
     setMessageInput("");
-
-    setReplyMessage(null);
 
     socket.emit(
       "stop_typing",
@@ -340,110 +145,36 @@ function Chat() {
   const handleTyping = (value) => {
     setMessageInput(value);
 
-    socket.emit("typing", {
-      room,
-      username,
-    });
-
-    clearTimeout(
-      typingTimeoutRef.current
-    );
-
-    typingTimeoutRef.current =
-      setTimeout(() => {
-        socket.emit(
-          "stop_typing",
-          room
-        );
-      }, 1000);
-  };
-
-  // ===============================
-  // CLEAR CHAT
-  // ===============================
-
-  const clearChat = () => {
-    const confirmClear =
-      window.confirm(
-        "Clear all messages?"
-      );
-
-    if (!confirmClear) return;
-
-    socket.emit(
-      "clear_room",
-      room
-    );
-
-    setShowMenu(false);
-  };
-
-  // ===============================
-  // DELETE ROOM
-  // ===============================
-
-  const deleteRoom = () => {
-    const confirmDelete =
-      window.confirm(
-        "Delete room permanently?"
-      );
-
-    if (!confirmDelete) return;
-
-    socket.emit(
-      "delete_room",
-      room
-    );
-
-    setShowMenu(false);
-  };
-
-  // ===============================
-  // DELETE MESSAGE
-  // ===============================
-
-  const deleteMessage = (
-    messageId,
-    type
-  ) => {
-    if (type === "me") {
-      setMessages((prev) =>
-        prev.filter(
-          (msg) =>
-            msg._id !== messageId
-        )
-      );
+    if (value.trim()) {
+      socket.emit("typing", {
+        room,
+        username,
+      });
     } else {
       socket.emit(
-        "delete_message_everyone",
-        {
-          messageId,
-          room,
-        }
+        "stop_typing",
+        room
       );
     }
-
-    setMessageMenu({
-      visible: false,
-      message: null,
-    });
   };
 
   // ===============================
-  // MESSAGE MENU
+  // THEME
   // ===============================
 
-  const openMessageMenu = (
-    msg
-  ) => {
-    if (msg.username === "System")
-      return;
-
-    setMessageMenu({
-      visible: true,
-      message: msg,
-    });
-  };
+  const theme = darkMode
+    ? {
+        bg: "bg-[#020817]",
+        secondary: "bg-[#0f172a]",
+        card: "bg-[#111827]",
+        text: "text-white",
+      }
+    : {
+        bg: "bg-gray-100",
+        secondary: "bg-white",
+        card: "bg-white",
+        text: "text-black",
+      };
 
   // ===============================
   // JOIN SCREEN
@@ -451,11 +182,26 @@ function Chat() {
 
   if (!joined) {
     return (
-      <div className="min-h-screen bg-[#020817] flex items-center justify-center px-4">
-        <div className="w-full max-w-md bg-[#111827] rounded-3xl p-8 text-white shadow-2xl">
-          <h1 className="text-4xl font-bold mb-8 text-center">
-            SyncTalk
-          </h1>
+      <div
+        className={`h-screen flex items-center justify-center px-4 ${theme.bg}`}
+      >
+        <div
+          className={`w-full max-w-md rounded-3xl p-8 shadow-2xl ${theme.card} ${theme.text}`}
+        >
+          <div className="flex items-center justify-between mb-8">
+            <h1 className="text-4xl font-bold">
+              SyncTalk
+            </h1>
+
+            <button
+              onClick={() =>
+                setDarkMode(!darkMode)
+              }
+              className="w-11 h-11 rounded-full bg-indigo-500 text-white text-lg"
+            >
+              {darkMode ? "☀️" : "🌙"}
+            </button>
+          </div>
 
           <div className="space-y-4">
             <input
@@ -467,24 +213,22 @@ function Chat() {
                   e.target.value
                 )
               }
-              className="w-full bg-gray-700 rounded-2xl px-4 py-4 outline-none"
+              className="w-full px-4 py-4 rounded-2xl bg-gray-700 text-white outline-none"
             />
 
             <input
               type="text"
-              placeholder="Room Name"
+              placeholder="Room"
               value={room}
               onChange={(e) =>
-                setRoom(
-                  e.target.value
-                )
+                setRoom(e.target.value)
               }
-              className="w-full bg-gray-700 rounded-2xl px-4 py-4 outline-none"
+              className="w-full px-4 py-4 rounded-2xl bg-gray-700 text-white outline-none"
             />
 
             <button
               onClick={joinRoom}
-              className="w-full bg-indigo-500 hover:bg-indigo-600 rounded-2xl py-4 font-semibold"
+              className="w-full bg-indigo-500 hover:bg-indigo-600 py-4 rounded-2xl font-semibold text-white"
             >
               Join Room
             </button>
@@ -495,42 +239,49 @@ function Chat() {
   }
 
   // ===============================
-  // MAIN UI
+  // CHAT UI
   // ===============================
 
   return (
-    <div className="h-screen bg-[#020817] text-white flex overflow-hidden">
+    <div
+      className={`h-screen flex overflow-hidden ${theme.bg} ${theme.text}`}
+    >
       {/* SIDEBAR */}
 
-      <div className="hidden lg:flex w-[300px] bg-[#0f172a] border-r border-gray-700 flex-col p-5">
-        <h1 className="text-3xl font-bold mb-6">
-          SyncTalk
-        </h1>
+      <div
+        className={`fixed lg:relative z-50 top-0 left-0 h-full w-[280px] p-5 transition-transform duration-300 ${theme.secondary}
+        ${
+          showSidebar
+            ? "translate-x-0"
+            : "-translate-x-full lg:translate-x-0"
+        }`}
+      >
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-3xl font-bold">
+            SyncTalk
+          </h1>
 
-        <p className="text-sm text-gray-400">
+          <button
+            className="lg:hidden text-2xl"
+            onClick={() =>
+              setShowSidebar(false)
+            }
+          >
+            ✕
+          </button>
+        </div>
+
+        <p className="text-sm opacity-70">
           Room
         </p>
 
-        <h2 className="text-2xl font-semibold mb-6">
+        <h2 className="text-2xl font-bold mb-6">
           #{room}
         </h2>
 
-        <button
-          onClick={clearChat}
-          className="bg-slate-700 hover:bg-slate-800 rounded-2xl py-3 mb-3"
-        >
-          Clear Chat
-        </button>
-
-        <button
-          onClick={deleteRoom}
-          className="bg-red-600 hover:bg-red-700 rounded-2xl py-3 mb-6"
-        >
-          Delete Room
-        </button>
-
-        <p className="text-sm text-gray-400 mb-3">
-          Users ({roomUsers.length})
+        <p className="text-sm opacity-70 mb-3">
+          Active Users (
+          {roomUsers.length})
         </p>
 
         <div className="space-y-2">
@@ -538,7 +289,7 @@ function Chat() {
             (user, index) => (
               <div
                 key={index}
-                className="bg-gray-800 rounded-xl px-4 py-3"
+                className="px-4 py-3 rounded-xl bg-gray-700 text-white"
               >
                 {user}
               </div>
@@ -547,82 +298,128 @@ function Chat() {
         </div>
       </div>
 
-      {/* CHAT */}
+      {/* MAIN */}
 
       <div className="flex-1 flex flex-col">
-        {/* HEADER */}
+        {/* TOPBAR */}
 
-        <div className="h-[70px] bg-[#111827] border-b border-gray-700 flex items-center justify-between px-4">
-          <div>
-            <h1 className="text-xl font-bold">
-              SyncTalk
-            </h1>
+        <div
+          className={`h-[70px] px-4 flex items-center justify-between border-b border-gray-700 ${theme.card}`}
+        >
+          {/* LEFT */}
 
-            <p className="text-xs text-gray-400">
-              #{room}
-            </p>
+          <div className="flex items-center gap-3">
+            <button
+              className="text-2xl lg:hidden"
+              onClick={() =>
+                setShowSidebar(true)
+              }
+            >
+              ☰
+            </button>
+
+            <div>
+              <h1 className="font-bold text-xl">
+                SyncTalk
+              </h1>
+
+              <p className="text-xs opacity-70">
+                #{room}
+              </p>
+            </div>
+          </div>
+
+          {/* RIGHT */}
+
+          <div className="flex items-center gap-3 relative">
+            {/* THEME */}
+
+            <button
+              onClick={() =>
+                setDarkMode(!darkMode)
+              }
+              className="w-10 h-10 rounded-full bg-indigo-500 text-white"
+            >
+              {darkMode ? "☀️" : "🌙"}
+            </button>
+
+            {/* MENU */}
+
+            <button
+              onClick={() =>
+                setShowMenu(!showMenu)
+              }
+              className="text-3xl leading-none"
+            >
+              ⋮
+            </button>
+
+            {showMenu && (
+              <div
+                className={`absolute top-14 right-0 w-52 rounded-2xl shadow-2xl overflow-hidden border border-gray-700 z-50 ${theme.card}`}
+              >
+                <button
+                  onClick={() => {
+                    socket.emit(
+                      "clear_room",
+                      room
+                    );
+
+                    setShowMenu(false);
+                  }}
+                  className="w-full px-5 py-4 text-left hover:bg-gray-700"
+                >
+                  Clear Chat
+                </button>
+
+                <button
+                  onClick={() => {
+                    socket.emit(
+                      "delete_room",
+                      room
+                    );
+
+                    setShowMenu(false);
+                  }}
+                  className="w-full px-5 py-4 text-left hover:bg-gray-700"
+                >
+                  Delete Room
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
         {/* MESSAGES */}
 
-        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 bg-[#020617]">
-          {messages.map((msg) => (
+        <div className="flex-1 overflow-y-auto px-4 py-5 space-y-4">
+          {messages.map((msg, index) => (
             <div
-              key={msg._id}
-              className={`flex flex-col ${
+              key={index}
+              className={`flex flex-col message-animation ${
                 msg.username === username
                   ? "items-end"
                   : "items-start"
               }`}
-              onContextMenu={(e) => {
-                e.preventDefault();
-
-                openMessageMenu(msg);
-              }}
             >
-              <span className="text-xs mb-1 text-gray-400">
+              <span className="text-xs opacity-70 mb-1">
                 {msg.username}
               </span>
 
               <div
-                className={`px-4 py-3 rounded-2xl max-w-[85%] break-words ${
+                className={`px-4 py-3 rounded-2xl max-w-[80%] break-words ${
                   msg.username === username
-                    ? "bg-indigo-500"
+                    ? "bg-indigo-500 text-white"
                     : msg.username ===
                       "System"
-                    ? "bg-emerald-500"
-                    : "bg-gray-700"
+                    ? "bg-emerald-500 text-white"
+                    : "bg-gray-700 text-white"
                 }`}
               >
-                {msg.replyTo &&
-                  msg.replyTo
-                    .message && (
-                    <div className="bg-black/20 rounded-xl p-2 mb-2 border-l-4 border-white">
-                      <p className="font-semibold text-sm">
-                        {
-                          msg.replyTo
-                            .username
-                        }
-                      </p>
-
-                      <p className="text-sm truncate">
-                        {
-                          msg.replyTo
-                            .message
-                        }
-                      </p>
-                    </div>
-                  )}
-
-                <p>
-                  {msg.deleted
-                    ? "This message was deleted"
-                    : msg.text}
-                </p>
+                {msg.text}
               </div>
 
-              <span className="text-xs mt-1 text-gray-400">
+              <span className="text-xs opacity-60 mt-1">
                 {new Date(
                   msg.timestamp
                 ).toLocaleTimeString()}
@@ -635,44 +432,17 @@ function Chat() {
 
         {/* TYPING */}
 
-        <div className="h-7 px-4 text-sm italic text-gray-400 bg-[#020617]">
+        <div className="h-6 px-4 text-sm italic opacity-70">
           {typingUser &&
             `${typingUser} is typing...`}
         </div>
 
-        {/* REPLY */}
-
-        {replyMessage && (
-          <div className="bg-[#111827] border-t border-gray-700 px-4 py-3 flex justify-between items-center">
-            <div>
-              <p className="text-sm text-indigo-400 font-semibold">
-                Replying to{" "}
-                {
-                  replyMessage.username
-                }
-              </p>
-
-              <p className="text-sm text-gray-300 truncate">
-                {replyMessage.text}
-              </p>
-            </div>
-
-            <button
-              onClick={() =>
-                setReplyMessage(
-                  null
-                )
-              }
-            >
-              ✕
-            </button>
-          </div>
-        )}
-
         {/* INPUT */}
 
-        <div className="bg-[#111827] border-t border-gray-700 p-3">
-          <div className="flex gap-3">
+        <div
+          className={`p-3 border-t border-gray-700 ${theme.card}`}
+        >
+          <div className="flex items-center gap-3">
             <input
               type="text"
               placeholder="Message"
@@ -689,91 +459,21 @@ function Chat() {
                   sendMessage();
                 }
               }}
-              className="flex-1 bg-gray-700 rounded-2xl px-5 py-4 outline-none"
+              className="flex-1 px-5 py-4 rounded-2xl bg-gray-700 text-white outline-none"
             />
 
             <button
               onClick={sendMessage}
-              className="bg-indigo-500 hover:bg-indigo-600 rounded-2xl px-6 py-4 font-semibold"
+              className="bg-indigo-500 hover:bg-indigo-600 px-6 py-4 rounded-2xl font-semibold text-white"
             >
               Send
             </button>
           </div>
         </div>
-
-        {/* MESSAGE MENU */}
-
-        {messageMenu.visible &&
-          messageMenu.message && (
-            <div className="fixed inset-0 bg-black/60 z-50 flex items-end lg:items-center justify-center px-4">
-              <div className="w-full max-w-sm bg-[#111827] rounded-3xl overflow-hidden border border-gray-700">
-                <button
-                  onClick={() => {
-                    setReplyMessage(
-                      messageMenu.message
-                    );
-
-                    setMessageMenu({
-                      visible: false,
-                      message: null,
-                    });
-                  }}
-                  className="w-full text-left px-6 py-5 hover:bg-gray-700"
-                >
-                  Reply
-                </button>
-
-                {messageMenu.message
-                  .username ===
-                  username && (
-                  <>
-                    <button
-                      onClick={() =>
-                        deleteMessage(
-                          messageMenu
-                            .message
-                            ._id,
-                          "me"
-                        )
-                      }
-                      className="w-full text-left px-6 py-5 hover:bg-gray-700"
-                    >
-                      Delete For Me
-                    </button>
-
-                    <button
-                      onClick={() =>
-                        deleteMessage(
-                          messageMenu
-                            .message
-                            ._id,
-                          "everyone"
-                        )
-                      }
-                      className="w-full text-left px-6 py-5 text-red-400 hover:bg-gray-700"
-                    >
-                      Delete For Everyone
-                    </button>
-                  </>
-                )}
-
-                <button
-                  onClick={() =>
-                    setMessageMenu({
-                      visible: false,
-                      message: null,
-                    })
-                  }
-                  className="w-full text-left px-6 py-5 hover:bg-gray-700"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          )}
       </div>
     </div>
   );
 }
 
 export default Chat;
+```

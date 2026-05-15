@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 /* ===============================
-GLOBAL RESET
+GLOBAL
 =============================== */
 
 * {
@@ -11,10 +11,6 @@ GLOBAL RESET
   padding: 0;
   box-sizing: border-box;
 }
-
-/* ===============================
-HTML / BODY
-=============================== */
 
 html,
 body,
@@ -25,14 +21,8 @@ body,
   font-family: Arial, Helvetica, sans-serif;
 }
 
-/* ===============================
-MOBILE FIXES
-=============================== */
-
 body {
   -webkit-tap-highlight-color: transparent;
-  overscroll-behavior: none;
-  touch-action: manipulation;
 }
 
 /* ===============================
@@ -43,17 +33,13 @@ SCROLLBAR
   width: 6px;
 }
 
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
 ::-webkit-scrollbar-thumb {
   background: #475569;
   border-radius: 999px;
 }
 
 /* ===============================
-MESSAGE ANIMATION
+ANIMATION
 =============================== */
 
 .message-animation {
@@ -63,104 +49,11 @@ MESSAGE ANIMATION
 @keyframes fadeIn {
   from {
     opacity: 0;
-    transform: translateY(6px);
+    transform: translateY(8px);
   }
 
   to {
     opacity: 1;
     transform: translateY(0px);
-  }
-}
-
-/* ===============================
-LONG PRESS MENU
-=============================== */
-
-.message-menu {
-  backdrop-filter: blur(10px);
-}
-
-/* ===============================
-SAFE MOBILE HEIGHT
-=============================== */
-
-.safe-screen {
-  height: 100dvh;
-  width: 100%;
-  overflow: hidden;
-}
-
-/* ===============================
-CHAT SCROLL AREA
-=============================== */
-
-.chat-scroll {
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-  scroll-behavior: smooth;
-}
-
-/* ===============================
-PREVENT MOBILE ZOOM
-=============================== */
-
-input,
-textarea,
-button,
-select {
-  font-size: 16px;
-}
-
-/* ===============================
-SIDEBAR MOBILE
-=============================== */
-
-.mobile-sidebar {
-  transition: transform 0.25s ease;
-}
-
-/* ===============================
-MESSAGE SELECT MODE
-=============================== */
-
-.selected-message {
-  border: 2px solid #6366f1;
-}
-
-/* ===============================
-REPLY PREVIEW
-=============================== */
-
-.reply-preview {
-  border-left: 4px solid #6366f1;
-}
-
-/* ===============================
-TYPING ANIMATION
-=============================== */
-
-.typing-dot {
-  animation: blink 1s infinite;
-}
-
-.typing-dot:nth-child(2) {
-  animation-delay: 0.2s;
-}
-
-.typing-dot:nth-child(3) {
-  animation-delay: 0.4s;
-}
-
-@keyframes blink {
-  0% {
-    opacity: 0.3;
-  }
-
-  50% {
-    opacity: 1;
-  }
-
-  100% {
-    opacity: 0.3;
   }
 }
