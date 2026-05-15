@@ -1,4 +1,3 @@
-```js
 require("dotenv").config();
 
 const express = require("express");
@@ -30,7 +29,10 @@ const io = new Server(server, {
 
 const activeRooms = {};
 
-// typing users tracker
+// ===============================
+// TYPING USERS
+// ===============================
+
 const typingUsers = {};
 
 // ===============================
@@ -66,7 +68,7 @@ app.get("/rooms", async (req, res) => {
 
     res.json(rooms);
   } catch (error) {
-    console.log(error);
+    console.log("❌ Rooms Error:", error);
 
     res.status(500).json({
       error: "Failed to fetch rooms",
@@ -99,17 +101,17 @@ io.on("connection", (socket) => {
         );
 
         // ===============================
-        // CREATE ROOM
+        // CREATE ROOM IF NOT EXISTS
         // ===============================
 
         const existingRoom =
           await Room.findOne({
-            room: room,
+            roomName: room,
           });
 
         if (!existingRoom) {
           await Room.create({
-            room: room,
+            roomName: room,
           });
         }
 
@@ -137,7 +139,7 @@ io.on("connection", (socket) => {
         );
 
         // ===============================
-        // PREVIOUS MESSAGES
+        // LOAD OLD MESSAGES
         // ===============================
 
         const previousMessages =
@@ -153,7 +155,7 @@ io.on("connection", (socket) => {
         );
 
         // ===============================
-        // SYSTEM JOIN MESSAGE
+        // JOIN MESSAGE
         // ===============================
 
         const joinMessage =
@@ -161,6 +163,7 @@ io.on("connection", (socket) => {
             text: `${username} joined the room`,
             username: "System",
             room,
+            timestamp: new Date(),
           });
 
         await joinMessage.save();
@@ -171,7 +174,7 @@ io.on("connection", (socket) => {
         );
       } catch (error) {
         console.log(
-          "❌ Join room error:",
+          "❌ Join Room Error:",
           error
         );
       }
@@ -210,6 +213,8 @@ io.on("connection", (socket) => {
             replyTo:
               messageData.replyTo ||
               null,
+
+            deleted: false,
           });
 
         await newMessage.save();
@@ -220,7 +225,7 @@ io.on("connection", (socket) => {
         );
 
         // ===============================
-        // STOP TYPING AFTER SEND
+        // STOP TYPING
         // ===============================
 
         if (
@@ -233,12 +238,12 @@ io.on("connection", (socket) => {
           ][messageData.username];
         }
 
-        socket
-          .to(messageData.room)
-          .emit("stop_typing");
+        io.to(messageData.room).emit(
+          "stop_typing"
+        );
       } catch (error) {
         console.log(
-          "❌ Message error:",
+          "❌ Message Error:",
           error
         );
       }
@@ -256,7 +261,7 @@ io.on("connection", (socket) => {
         typingUsers[room] = {};
       }
 
-      // prevent spam emits
+      // already typing
       if (
         typingUsers[room][username]
       ) {
@@ -272,6 +277,10 @@ io.on("connection", (socket) => {
       );
     }
   );
+
+  // ===============================
+  // STOP TYPING
+  // ===============================
 
   socket.on("stop_typing", (room) => {
     if (
@@ -289,7 +298,7 @@ io.on("connection", (socket) => {
   });
 
   // ===============================
-  // DELETE MESSAGE
+  // DELETE MESSAGE FOR EVERYONE
   // ===============================
 
   socket.on(
@@ -301,7 +310,9 @@ io.on("connection", (socket) => {
             messageId
           );
 
-        if (!message) return;
+        if (!message) {
+          return;
+        }
 
         // sender only
         if (
@@ -326,7 +337,7 @@ io.on("connection", (socket) => {
         );
       } catch (error) {
         console.log(
-          "❌ Delete message error:",
+          "❌ Delete Message Error:",
           error
         );
       }
@@ -354,7 +365,7 @@ io.on("connection", (socket) => {
         );
       } catch (error) {
         console.log(
-          "❌ Clear room error:",
+          "❌ Clear Room Error:",
           error
         );
       }
@@ -374,7 +385,7 @@ io.on("connection", (socket) => {
         });
 
         await Room.deleteOne({
-          room: room,
+          roomName: room,
         });
 
         delete activeRooms[room];
@@ -393,11 +404,11 @@ io.on("connection", (socket) => {
         });
 
         console.log(
-          `🗑️ Deleted room ${room}`
+          `🗑️ Deleted ${room}`
         );
       } catch (error) {
         console.log(
-          "❌ Delete room error:",
+          "❌ Delete Room Error:",
           error
         );
       }
@@ -420,7 +431,10 @@ io.on("connection", (socket) => {
           `🔴 ${username} left ${room}`
         );
 
-        // remove active user
+        // ===============================
+        // REMOVE USER
+        // ===============================
+
         if (activeRooms[room]) {
           activeRooms[room] =
             activeRooms[room].filter(
@@ -433,7 +447,7 @@ io.on("connection", (socket) => {
             activeRooms[room]
           );
 
-          // cleanup empty room memory
+          // cleanup empty room
           if (
             activeRooms[room]
               .length === 0
@@ -444,7 +458,10 @@ io.on("connection", (socket) => {
           }
         }
 
-        // typing cleanup
+        // ===============================
+        // REMOVE TYPING
+        // ===============================
+
         if (
           typingUsers[room]
         ) {
@@ -457,12 +474,16 @@ io.on("connection", (socket) => {
           .to(room)
           .emit("stop_typing");
 
-        // leave message
+        // ===============================
+        // LEAVE MESSAGE
+        // ===============================
+
         const leaveMessage =
           new Message({
             text: `${username} left the room`,
             username: "System",
             room,
+            timestamp: new Date(),
           });
 
         await leaveMessage.save();
@@ -479,7 +500,7 @@ io.on("connection", (socket) => {
       );
     } catch (error) {
       console.log(
-        "❌ Disconnect error:",
+        "❌ Disconnect Error:",
         error
       );
     }
@@ -497,4 +518,3 @@ server.listen(PORT, () => {
     `🚀 Server running on ${PORT}`
   );
 });
-```

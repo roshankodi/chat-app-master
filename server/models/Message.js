@@ -2,11 +2,19 @@ const mongoose = require("mongoose");
 
 const MessageSchema = new mongoose.Schema(
   {
+    // ===============================
+    // MESSAGE TEXT
+    // ===============================
+
     text: {
       type: String,
       required: true,
       trim: true,
     },
+
+    // ===============================
+    // USERNAME
+    // ===============================
 
     username: {
       type: String,
@@ -14,11 +22,19 @@ const MessageSchema = new mongoose.Schema(
       trim: true,
     },
 
+    // ===============================
+    // ROOM
+    // ===============================
+
     room: {
       type: String,
       required: true,
       trim: true,
     },
+
+    // ===============================
+    // TIMESTAMP
+    // ===============================
 
     timestamp: {
       type: Date,
@@ -39,7 +55,7 @@ const MessageSchema = new mongoose.Schema(
     // ===============================
 
     replyTo: {
-      message: {
+      text: {
         type: String,
         default: "",
       },
