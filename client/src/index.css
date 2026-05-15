@@ -23,6 +23,7 @@ body,
 
 body {
   -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
 }
 
 /* ===============================
@@ -31,6 +32,7 @@ SCROLLBAR
 
 ::-webkit-scrollbar {
   width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-thumb {
