@@ -26,7 +26,7 @@ const MessageSchema = new mongoose.Schema(
     },
 
     // ===============================
-    // DELETE FOR EVERYONE
+    // DELETE SUPPORT
     // ===============================
 
     deleted: {
@@ -34,14 +34,20 @@ const MessageSchema = new mongoose.Schema(
       default: false,
     },
 
-    deletedForEveryone: {
-      type: Boolean,
-      default: false,
-    },
+    // ===============================
+    // REPLY SUPPORT
+    // ===============================
 
-    deletedMessage: {
-      type: String,
-      default: "This message was deleted",
+    replyTo: {
+      message: {
+        type: String,
+        default: "",
+      },
+
+      username: {
+        type: String,
+        default: "",
+      },
     },
   },
   {
