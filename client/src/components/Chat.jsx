@@ -1,10 +1,4 @@
-```jsx
-import {
-  useEffect,
-  useRef,
-  useState,
-} from "react";
-
+import { useState, useEffect, useRef } from "react";
 import io from "socket.io-client";
 
 const socket = io(
@@ -12,63 +6,33 @@ const socket = io(
 );
 
 function Chat() {
-  const [messages, setMessages] =
-    useState([]);
-
+  const [messages, setMessages] = useState([]);
   const [messageInput, setMessageInput] =
     useState("");
 
   const [username, setUsername] =
     useState("");
 
-  const [room, setRoom] =
-    useState("");
+  const [room, setRoom] = useState("");
 
   const [joined, setJoined] =
-    useState(false);
-
-  const [roomUsers, setRoomUsers] =
-    useState([]);
-
-  const [typingUser, setTypingUser] =
-    useState("");
-
-  const [showSidebar, setShowSidebar] =
-    useState(false);
-
-  const [showMenu, setShowMenu] =
     useState(false);
 
   const [darkMode, setDarkMode] =
     useState(true);
 
+  // Active users
+  const [roomUsers, setRoomUsers] =
+    useState([]);
+
   const messagesEndRef = useRef(null);
 
   // ===============================
-  // THEME
-  // ===============================
-
-  const theme = darkMode
-    ? {
-        bg: "bg-[#020817]",
-        card: "bg-[#111827]",
-        sidebar: "bg-[#0f172a]",
-        text: "text-white",
-        input: "bg-gray-700",
-      }
-    : {
-        bg: "bg-gray-100",
-        card: "bg-white",
-        sidebar: "bg-gray-200",
-        text: "text-black",
-        input: "bg-gray-300",
-      };
-
-  // ===============================
-  // SOCKET
+  // SOCKET LISTENERS
   // ===============================
 
   useEffect(() => {
+    // Live Messages
     socket.on("message", (message) => {
       setMessages((prev) => [
         ...prev,
@@ -76,33 +40,40 @@ function Chat() {
       ]);
     });
 
+    // Previous Messages
     socket.on(
       "previous_messages",
-      (msgs) => {
-        setMessages(msgs);
+      (previousMessages) => {
+        setMessages(previousMessages);
       }
     );
 
+    // Active Users
     socket.on("room_users", (users) => {
       setRoomUsers(users);
     });
 
-    socket.on("typing", (user) => {
-      setTypingUser(user);
+    // Room Cleared
+    socket.on("room_cleared", () => {
+      setMessages([]);
     });
 
-    socket.on("stop_typing", () => {
-      setTypingUser("");
+    // Room Deleted
+    socket.on("room_deleted", () => {
+      alert("Room deleted successfully");
+
+      setMessages([]);
+      setJoined(false);
+      setRoom("");
+      setRoomUsers([]);
     });
 
     return () => {
       socket.off("message");
-      socket.off(
-        "previous_messages"
-      );
+      socket.off("previous_messages");
       socket.off("room_users");
-      socket.off("typing");
-      socket.off("stop_typing");
+      socket.off("room_cleared");
+      socket.off("room_deleted");
     };
   }, []);
 
@@ -111,66 +82,81 @@ function Chat() {
   // ===============================
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView(
-      {
-        behavior: "smooth",
-      }
-    );
+    scrollToBottom();
   }, [messages]);
 
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({
+      behavior: "smooth",
+    });
+  };
+
   // ===============================
-  // JOIN
+  // JOIN ROOM
   // ===============================
 
   const joinRoom = () => {
     if (
-      !username.trim() ||
-      !room.trim()
+      username.trim() === "" ||
+      room.trim() === ""
     )
       return;
+
+    setJoined(true);
 
     socket.emit("join_room", {
       username,
       room,
     });
-
-    setJoined(true);
   };
 
   // ===============================
-  // SEND
+  // SEND MESSAGE
   // ===============================
 
   const sendMessage = () => {
-    if (!messageInput.trim())
+    if (messageInput.trim() === "")
       return;
 
-    socket.emit("message", {
+    const messageData = {
       text: messageInput,
       username,
       room,
       timestamp: new Date(),
-    });
+    };
+
+    socket.emit("message", messageData);
 
     setMessageInput("");
-
-    socket.emit(
-      "stop_typing",
-      room
-    );
   };
 
   // ===============================
-  // TYPING
+  // CLEAR CHAT
   // ===============================
 
-  const handleTyping = (value) => {
-    setMessageInput(value);
+  const clearChat = () => {
+    const confirmClear = window.confirm(
+      "Clear all messages in this room?"
+    );
 
-    socket.emit("typing", {
-      room,
-      username,
-    });
+    if (!confirmClear) return;
+
+    socket.emit("clear_room", room);
+  };
+
+  // ===============================
+  // DELETE ROOM
+  // ===============================
+
+  const deleteRoom = () => {
+    const confirmDelete =
+      window.confirm(
+        "Delete this room permanently?"
+      );
+
+    if (!confirmDelete) return;
+
+    socket.emit("delete_room", room);
   };
 
   // ===============================
@@ -180,41 +166,81 @@ function Chat() {
   if (!joined) {
     return (
       <div
-        className={`h-screen flex items-center justify-center px-4 ${theme.bg}`}
+        className={`flex justify-center items-center min-h-screen px-4 ${
+          darkMode
+            ? "bg-[#020817]"
+            : "bg-gradient-to-br from-slate-100 to-slate-200"
+        }`}
       >
         <div
-          className={`w-full max-w-md rounded-3xl p-8 shadow-2xl ${theme.card} ${theme.text}`}
+          className={`w-full max-w-md rounded-3xl shadow-2xl p-8 ${
+            darkMode
+              ? "bg-[#111827] text-white"
+              : "bg-white"
+          }`}
         >
-          <h1 className="text-4xl font-bold mb-8 text-center">
-            SyncTalk
-          </h1>
+          {/* HEADER */}
+          <div className="flex items-center justify-center gap-3 mb-2">
+            <h1 className="text-4xl font-bold">
+              SyncTalk
+            </h1>
+
+            <button
+              onClick={() =>
+                setDarkMode(!darkMode)
+              }
+              className={`w-10 h-10 rounded-full flex items-center justify-center shadow-md transition ${
+                darkMode
+                  ? "bg-yellow-400 text-black"
+                  : "bg-gray-800 text-white"
+              }`}
+            >
+              {darkMode ? "☀️" : "🌙"}
+            </button>
+          </div>
+
+          <p
+            className={`text-center mb-8 ${
+              darkMode
+                ? "text-gray-300"
+                : "text-gray-500"
+            }`}
+          >
+            Join a realtime chat room
+          </p>
 
           <div className="space-y-4">
             <input
               type="text"
-              placeholder="Username"
+              placeholder="Enter username"
               value={username}
               onChange={(e) =>
-                setUsername(
-                  e.target.value
-                )
+                setUsername(e.target.value)
               }
-              className={`w-full px-4 py-4 rounded-2xl outline-none ${theme.input}`}
+              className={`w-full px-4 py-4 rounded-2xl border outline-none ${
+                darkMode
+                  ? "bg-gray-700 border-gray-600 text-white"
+                  : "border-gray-300"
+              }`}
             />
 
             <input
               type="text"
-              placeholder="Room Name"
+              placeholder="Enter room name"
               value={room}
               onChange={(e) =>
                 setRoom(e.target.value)
               }
-              className={`w-full px-4 py-4 rounded-2xl outline-none ${theme.input}`}
+              className={`w-full px-4 py-4 rounded-2xl border outline-none ${
+                darkMode
+                  ? "bg-gray-700 border-gray-600 text-white"
+                  : "border-gray-300"
+              }`}
             />
 
             <button
               onClick={joinRoom}
-              className="w-full bg-indigo-500 hover:bg-indigo-600 py-4 rounded-2xl font-semibold text-white"
+              className="w-full bg-indigo-500 hover:bg-indigo-600 text-white py-4 rounded-2xl font-semibold transition"
             >
               Join Room
             </button>
@@ -225,247 +251,222 @@ function Chat() {
   }
 
   // ===============================
-  // MAIN UI
+  // CHAT SCREEN
   // ===============================
 
   return (
     <div
-      className={`h-screen flex overflow-hidden ${theme.bg} ${theme.text}`}
+      className={`flex justify-center items-center min-h-screen px-1 lg:px-3 ${
+        darkMode
+          ? "bg-[#020817]"
+          : "bg-gradient-to-br from-slate-100 to-slate-200"
+      }`}
     >
-      {/* SIDEBAR */}
-
-      {showSidebar && (
-        <div className="fixed inset-0 z-50 bg-black/50 lg:hidden">
-          <div
-            className={`w-[280px] h-full p-5 ${theme.sidebar}`}
-          >
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold">
-                Room
-              </h2>
-
-              <button
-                onClick={() =>
-                  setShowSidebar(false)
-                }
-              >
-                ✕
-              </button>
-            </div>
-
-            <h3 className="text-xl font-semibold mb-6">
-              #{room}
-            </h3>
-
-            <p className="text-sm mb-3">
-              Active Users (
-              {roomUsers.length})
-            </p>
-
-            <div className="space-y-2">
-              {roomUsers.map(
-                (user, index) => (
-                  <div
-                    key={index}
-                    className="bg-gray-700 rounded-xl px-4 py-3"
-                  >
-                    {user}
-                  </div>
-                )
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* DESKTOP SIDEBAR */}
-
       <div
-        className={`hidden lg:flex w-[300px] flex-col p-5 border-r border-gray-700 ${theme.sidebar}`}
+        className={`w-full max-w-[1900px] rounded-3xl shadow-2xl overflow-hidden ${
+          darkMode
+            ? "bg-[#111827] text-white"
+            : "bg-white"
+        }`}
       >
-        <h1 className="text-3xl font-bold mb-6">
-          SyncTalk
-        </h1>
+        <div className="flex h-[850px]">
+          {/* SIDEBAR */}
 
-        <h2 className="text-2xl font-semibold mb-6">
-          #{room}
-        </h2>
-
-        <p className="text-sm mb-3">
-          Active Users (
-          {roomUsers.length})
-        </p>
-
-        <div className="space-y-2">
-          {roomUsers.map(
-            (user, index) => (
-              <div
-                key={index}
-                className="bg-gray-700 rounded-xl px-4 py-3 text-white"
-              >
-                {user}
-              </div>
-            )
-          )}
-        </div>
-      </div>
-
-      {/* CHAT */}
-
-      <div className="flex-1 flex flex-col">
-        {/* TOPBAR */}
-
-        <div
-          className={`h-[70px] border-b border-gray-700 flex items-center justify-between px-4 ${theme.card}`}
-        >
-          <div className="flex items-center gap-3">
-            <button
-              className="lg:hidden text-2xl"
-              onClick={() =>
-                setShowSidebar(true)
-              }
-            >
-              ☰
-            </button>
-
-            <div>
-              <h1 className="text-xl font-bold">
+          <div
+            className={`w-[320px] border-r p-5 ${
+              darkMode
+                ? "bg-[#0f172a] border-gray-700"
+                : "bg-gray-100 border-gray-200"
+            }`}
+          >
+            {/* HEADER */}
+            <div className="flex items-center justify-between mb-6">
+              <h1 className="text-3xl font-bold">
                 SyncTalk
               </h1>
 
-              <p className="text-xs opacity-70">
-                #{room}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3 relative">
-            <button
-              onClick={() =>
-                setDarkMode(!darkMode)
-              }
-              className="w-10 h-10 rounded-full bg-yellow-400 text-black"
-            >
-              ☀️
-            </button>
-
-            <button
-              onClick={() =>
-                setShowMenu(!showMenu)
-              }
-              className="text-2xl"
-            >
-              ⋮
-            </button>
-
-            {showMenu && (
-              <div
-                className={`absolute top-14 right-0 w-48 rounded-2xl shadow-2xl overflow-hidden z-50 ${theme.card}`}
-              >
-                <button
-                  onClick={() => {
-                    socket.emit(
-                      "clear_room",
-                      room
-                    );
-
-                    setShowMenu(false);
-                  }}
-                  className="w-full text-left px-5 py-4 hover:bg-gray-700"
-                >
-                  Clear Chat
-                </button>
-
-                <button
-                  onClick={() => {
-                    socket.emit(
-                      "delete_room",
-                      room
-                    );
-
-                    setShowMenu(false);
-                  }}
-                  className="w-full text-left px-5 py-4 hover:bg-gray-700"
-                >
-                  Delete Room
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* MESSAGES */}
-
-        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
-          {messages.map((msg, index) => (
-            <div
-              key={index}
-              className={`flex flex-col ${
-                msg.username === username
-                  ? "items-end"
-                  : "items-start"
-              }`}
-            >
-              <span className="text-xs mb-1 opacity-70">
-                {msg.username}
-              </span>
-
-              <div
-                className={`px-4 py-3 rounded-2xl max-w-[85%] break-words ${
-                  msg.username === username
-                    ? "bg-indigo-500 text-white"
-                    : msg.username ===
-                      "System"
-                    ? "bg-emerald-500 text-white"
-                    : "bg-gray-700 text-white"
+              <button
+                onClick={() =>
+                  setDarkMode(!darkMode)
+                }
+                className={`w-10 h-10 rounded-full flex items-center justify-center shadow-md transition ${
+                  darkMode
+                    ? "bg-yellow-400 text-black"
+                    : "bg-gray-800 text-white"
                 }`}
               >
-                {msg.text}
+                {darkMode ? "☀️" : "🌙"}
+              </button>
+            </div>
+
+            {/* ROOM */}
+            <div className="mb-6">
+              <p
+                className={`text-sm ${
+                  darkMode
+                    ? "text-gray-400"
+                    : "text-gray-500"
+                }`}
+              >
+                Room
+              </p>
+
+              <h2 className="text-2xl font-semibold mt-1">
+                #{room}
+              </h2>
+            </div>
+
+            {/* CLEAR CHAT */}
+            <button
+              onClick={clearChat}
+              className="w-full mb-3 bg-slate-600 hover:bg-slate-700 text-white py-3 rounded-2xl font-semibold transition"
+            >
+              Clear Chat
+            </button>
+
+            {/* DELETE ROOM */}
+            <button
+              onClick={deleteRoom}
+              className="w-full mb-6 bg-stone-600 hover:bg-stone-700 text-white py-3 rounded-2xl font-semibold transition"
+            >
+              Delete Room
+            </button>
+
+            {/* USERS */}
+            <div>
+              <p
+                className={`text-sm mb-3 ${
+                  darkMode
+                    ? "text-gray-400"
+                    : "text-gray-500"
+                }`}
+              >
+                Active Users (
+                {roomUsers.length})
+              </p>
+
+              <div className="space-y-2">
+                {roomUsers.map((user, index) => (
+                  <div
+                    key={index}
+                    className={`px-4 py-3 rounded-xl ${
+                      darkMode
+                        ? "bg-gray-800"
+                        : "bg-white"
+                    }`}
+                  >
+                    {user}
+                  </div>
+                ))}
               </div>
             </div>
-          ))}
+          </div>
 
-          <div ref={messagesEndRef} />
-        </div>
+          {/* CHAT AREA */}
 
-        {/* TYPING */}
-
-        <div className="px-4 h-7 text-sm italic opacity-70">
-          {typingUser &&
-            `${typingUser} is typing...`}
-        </div>
-
-        {/* INPUT */}
-
-        <div
-          className={`border-t border-gray-700 p-3 ${theme.card}`}
-        >
-          <div className="flex gap-3">
-            <input
-              type="text"
-              placeholder="Message"
-              value={messageInput}
-              onChange={(e) =>
-                handleTyping(
-                  e.target.value
-                )
-              }
-              onKeyDown={(e) => {
-                if (
-                  e.key === "Enter"
-                ) {
-                  sendMessage();
-                }
-              }}
-              className={`flex-1 px-5 py-4 rounded-2xl outline-none ${theme.input}`}
-            />
-
-            <button
-              onClick={sendMessage}
-              className="bg-indigo-500 hover:bg-indigo-600 px-6 py-4 rounded-2xl font-semibold text-white"
+          <div className="flex flex-col flex-1">
+            {/* MESSAGES */}
+            <div
+              className={`flex-1 overflow-y-auto p-6 space-y-4 ${
+                darkMode
+                  ? "bg-[#020617]"
+                  : "bg-gray-50"
+              }`}
             >
-              Send
-            </button>
+              {messages.length === 0 ? (
+                <div className="flex items-center justify-center h-full text-gray-400 text-sm">
+                  No messages yet. Start chatting 🚀
+                </div>
+              ) : (
+                messages.map((msg, index) => (
+                  <div
+                    key={index}
+                    className={`flex flex-col ${
+                      msg.username === username
+                        ? "items-end"
+                        : "items-start"
+                    }`}
+                  >
+                    <span
+                      className={`text-xs mb-1 ${
+                        darkMode
+                          ? "text-gray-400"
+                          : "text-gray-500"
+                      }`}
+                    >
+                      {msg.username}
+                    </span>
+
+                    <div
+                      className={`px-5 py-3 rounded-2xl shadow-sm max-w-[75%] break-words ${
+                        msg.username === username
+                          ? "bg-indigo-500 text-white"
+                          : msg.username ===
+                            "System"
+                          ? "bg-emerald-500 text-white"
+                          : darkMode
+                          ? "bg-gray-700 text-white"
+                          : "bg-gray-200 text-black"
+                      }`}
+                    >
+                      {msg.text}
+                    </div>
+
+                    <span
+                      className={`text-xs mt-1 ${
+                        darkMode
+                          ? "text-gray-400"
+                          : "text-gray-500"
+                      }`}
+                    >
+                      {new Date(
+                        msg.timestamp
+                      ).toLocaleTimeString()}
+                    </span>
+                  </div>
+                ))
+              )}
+
+              <div ref={messagesEndRef} />
+            </div>
+
+            {/* INPUT */}
+            <div
+              className={`p-5 border-t ${
+                darkMode
+                  ? "border-gray-700 bg-[#111827]"
+                  : "border-gray-200 bg-white"
+              }`}
+            >
+              <div className="flex items-center gap-4 w-full">
+                <input
+                  type="text"
+                  placeholder="Message your team..."
+                  value={messageInput}
+                  onChange={(e) =>
+                    setMessageInput(
+                      e.target.value
+                    )
+                  }
+                  onKeyDown={(e) =>
+                    e.key === "Enter" &&
+                    sendMessage()
+                  }
+                  className={`flex-1 px-6 py-4 rounded-2xl outline-none border text-lg ${
+                    darkMode
+                      ? "bg-gray-700 border-gray-600 text-white"
+                      : "border-gray-300"
+                  }`}
+                />
+
+                <button
+                  onClick={sendMessage}
+                  className="bg-indigo-500 hover:bg-indigo-600 text-white px-10 py-4 rounded-2xl font-semibold transition whitespace-nowrap"
+                >
+                  Send
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -474,4 +475,3 @@ function Chat() {
 }
 
 export default Chat;
-```

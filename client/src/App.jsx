@@ -1,7 +1,11 @@
 import Chat from "./components/Chat";
 
 function App() {
-  return <Chat />;
+  return (
+    <div className="safe-screen">
+      <Chat />
+    </div>
+  );
 }
 
 export default App;
