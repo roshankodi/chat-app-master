@@ -73,19 +73,14 @@ https://synctalk-backend-w7lj.onrender.com
 
 ### Mobile Chat Interface
 
-![Mobile Chat](./screenshots/mobile.png)
+![Mobile Chat](./screenshots/mobile.jpeg)
 
----
-
-### Typing Feature
-
-![Typing Feature](./screenshots/typing.png)
 
 ---
 
 ### Active Users Sidebar
 
-![Users Sidebar](./screenshots/sidebar.png)
+![Users Sidebar](./screenshots/sidebar.jpeg)
 
 ---
 
