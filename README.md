@@ -14,6 +14,9 @@ https://synctalk.vercel.app/
 ### Backend
 https://synctalk-backend-w7lj.onrender.com
 
+### Rooms
+https://synctalk-backend-w7lj.onrender.com/rooms
+
 ---
 
 # ✨ Features
